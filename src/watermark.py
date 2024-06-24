@@ -3,15 +3,6 @@ import random
 import string
 import numpy as np
 
-def generate_random_md5(seed):
-    # Generate a random string of fixed length
-    random_string = str(seed)
-    
-    # Create an MD5 hash of the random string
-    md5_hash = hashlib.md5(random_string.encode()).hexdigest()
-    
-    return md5_hash
-
 def apply_watermarks(ds, watermark_func, orig_name, col_prefix, frac, seed, **kwargs):
     """Apply the watermarking function to a fraction of the dataset."""
     length = len(ds)
@@ -31,6 +22,25 @@ def apply_watermarks(ds, watermark_func, orig_name, col_prefix, frac, seed, **kw
     ds = ds.add_column(f'{col_prefix}:{orig_name}', watermarked_text)
     ds = ds.add_column(f'{col_prefix}:label', mask)
     return ds
+
+def random_sequence_watermark(ds, orig_name='text', col_prefix='rand_seq', frac=0.5, seed=0):
+    return apply_watermarks(ds, apply_watermark_random_sequence, orig_name, col_prefix, frac, seed)
+
+def natural_copyright_trap_watermark(ds, orig_name='text', col_prefix='natural_ct', frac=0.5, seed=0, n=1):
+    return apply_watermarks(ds, apply_watermark_natural_copyright_trap, orig_name, col_prefix, frac, seed, n=n)
+
+# ======================
+# watermarking functions
+# ======================
+
+def generate_random_md5(seed):
+    # Generate a random string of fixed length
+    random_string = str(seed)
+    
+    # Create an MD5 hash of the random string
+    md5_hash = hashlib.md5(random_string.encode()).hexdigest()
+    
+    return md5_hash
 
 def apply_watermark_random_sequence(text, seed=0):
     """Append an MD5 watermark to the text."""
@@ -58,8 +68,4 @@ def apply_watermark_natural_copyright_trap(text, seed, n=1):
     
     return watermarked_document
 
-def random_sequence_watermark(ds, orig_name='text', col_prefix='rand_seq', frac=0.5, seed=0):
-    return apply_watermarks(ds, apply_watermark_random_sequence, orig_name, col_prefix, frac, seed)
 
-def natural_copyright_trap_watermark(ds, orig_name='text', col_prefix='natural_ct', frac=0.5, seed=0, n=1):
-    return apply_watermarks(ds, apply_watermark_natural_copyright_trap, orig_name, col_prefix, frac, seed, n=n)
