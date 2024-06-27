@@ -29,6 +29,9 @@ def random_sequence_watermark(ds, orig_name='text', col_prefix='rand_seq', frac=
 def natural_copyright_trap_watermark(ds, orig_name='text', col_prefix='natural_ct', frac=0.5, seed=0, n=1):
     return apply_watermarks(ds, apply_watermark_natural_copyright_trap, orig_name, col_prefix, frac, seed, n=n)
 
+def llm_generated_copyright_trap_watermark(ds, orig_name='text', col_prefix='llm_ct', frac=0.5, seed=0, n=1):
+    return apply_watermarks(ds, apply_watermark_llm_generated_copyright_trap, orig_name, col_prefix, frac, seed, n=n)
+
 # ======================
 # watermarking functions
 # ======================
@@ -69,3 +72,39 @@ def apply_watermark_natural_copyright_trap(text, seed, n=1):
     return watermarked_document
 
 
+def apply_watermark_llm_generated_copyright_trap(model, tokenizer, text, seed, n=1, temp=0.5, seq_len=25):
+    """Insert an LLM generated sentence of length seq_len at temperature temp as a watermark n times into the text."""
+    
+    rng = np.random.default_rng(seed)
+    
+    # Split the document into sentences
+    sentences = sent_tokenize(text)
+
+    input = tokenizer([". "], return_tensors="pt")
+    generated_ids = model.generate(
+                    input["input_ids"],
+                    pad_token_id=tokenizer.pad_token_id,
+                    max_length=seq_len,
+                    do_sample=True,
+                    temperature=temp,
+                )
+    # stop at sentence completion
+    stop_len = seq_len
+    for i in range(input['input_ids'].shape[1], seq_len-1):
+        token_id = generated_ids[0, i]
+        # found period
+        if token_id.item() == input['input_ids'][0,0].item():
+            stop_len = i+1
+            break
+    
+    watermark_sentence = tokenizer.batch_decode(generated_ids[:, input['input_ids'].shape[1]:stop_len])[0]
+    
+    # Insert the watermark sentence at random locations n times
+    for _ in range(n):
+        position = rng.integers(0, len(sentences) + 1)
+        sentences.insert(position, watermark_sentence)
+    
+    # Combine the sentences back into a single document
+    watermarked_document = ' '.join(sentences)
+    
+    return watermarked_document
